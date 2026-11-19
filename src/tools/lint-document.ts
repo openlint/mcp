@@ -23,7 +23,12 @@ const groupedDiagnostic = z.object({
   first: z.object(location),
 });
 
-export function registerLintDocument(server: McpServer, rulesets: RulesetService, allowExternalRefs: boolean): void {
+export function registerLintDocument(
+  server: McpServer,
+  rulesets: RulesetService,
+  allowExternalRefs: boolean,
+  maxContentBytes: number,
+): void {
   server.registerTool(
     'lint_document',
     {
@@ -37,7 +42,7 @@ export function registerLintDocument(server: McpServer, rulesets: RulesetService
           ? 'External $refs to files and URLs are followed.'
           : 'External $refs to files and URLs are not followed; they are reported as invalid-ref.'),
       inputSchema: {
-        content: z.string().describe('The document, as YAML or JSON text'),
+        content: z.string().describe(`The document, as YAML or JSON text, up to ${maxContentBytes} bytes`),
         filename: filenameSchema
           .optional()
           .describe(
@@ -71,6 +76,19 @@ export function registerLintDocument(server: McpServer, rulesets: RulesetService
       annotations: { readOnlyHint: true, openWorldHint: allowExternalRefs },
     },
     async ({ content, filename, ruleset, severity: threshold, limit, groupBy }, { signal }) => {
+      // Linting is synchronous and CPU-bound, so one huge document would block every other call.
+      const size = Buffer.byteLength(content);
+      if (size > maxContentBytes) {
+        return {
+          isError: true,
+          content: [
+            {
+              type: 'text',
+              text: `The document is ${size} bytes, over the ${maxContentBytes}-byte limit. Lint a smaller document, or start the server with a larger --max-content-bytes.`,
+            },
+          ],
+        };
+      }
       const resolved = rulesets.resolve(ruleset);
       if (!resolved.ok) {
         return {

@@ -85,6 +85,20 @@ describe('lint_document', () => {
     });
   });
 
+  it('refuses a document over the size limit, and says how to raise it', async () => {
+    client = await connect(RulesetService.fallback(), false, 100);
+    const result = await client.callTool({ name: 'lint_document', arguments: { content: oas30 } });
+    expect(result.isError).toBe(true);
+    const [first] = result.content as { text: string }[];
+    expect(first!.text).toContain('over the 100-byte limit');
+    expect(first!.text).toContain('--max-content-bytes');
+  });
+
+  it('lints a document exactly at the size limit', async () => {
+    client = await connect(RulesetService.fallback(), false, Buffer.byteLength(oas30));
+    expect((await call('lint_document', { content: oas30 })).isError).toBeFalsy();
+  });
+
   it('returns flat diagnostics with groupBy "none"', async () => {
     client = await connect();
     const { structuredContent } = await call('lint_document', { content: oas30, groupBy: 'none', limit: 3 });

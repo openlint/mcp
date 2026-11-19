@@ -12,7 +12,11 @@ async function main(): Promise<void> {
   if (config.show === 'version') return void process.stdout.write(`${VERSION}\n`);
   if (config.show === 'help') return void process.stdout.write(USAGE);
   const rulesets = await RulesetService.fromConfig(config.rulesets);
-  await createServer({ rulesets, allowExternalRefs: config.allowExternalRefs }).connect(new StdioServerTransport());
+  await createServer({
+    rulesets,
+    allowExternalRefs: config.allowExternalRefs,
+    maxContentBytes: config.maxContentBytes,
+  }).connect(new StdioServerTransport());
 }
 
 main().catch((error: unknown) => {

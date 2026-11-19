@@ -66,6 +66,7 @@ Then use `node /abs/path/to/openlint-mcp/dist/index.js` wherever the examples be
 | `--ruleset <name>=<path>`    | An extra named ruleset. Repeat the option to add more. `oas`, `asyncapi` and `arazzo` are reserved names. |
 | `OPENLINT_RULESET=<path>`    | The default ruleset, when there is no unnamed `--ruleset`                                                 |
 | `--allow-external-refs`      | Let `lint_document` follow `$ref`s to files and URLs (off by default; see below)                          |
+| `--max-content-bytes <n>`    | Largest document `lint_document` accepts (default 2000000; or `OPENLINT_MCP_MAX_CONTENT_BYTES`)           |
 
 - **Which one is the default:** an unnamed `--ruleset`, then `OPENLINT_RULESET`, then the first named ruleset.
 - **Filenames that contain `=`:** `--ruleset team=prod.yaml` means a ruleset named `team`, loaded from `prod.yaml`. To load a file called `team=prod.yaml`, start the path with `./` or `/`, as in `--ruleset ./team=prod.yaml`.
@@ -99,6 +100,8 @@ It returns:
 - `counts` per severity, which always cover every result
 - the `diagnostics`, most severe first, grouped by rule code unless `groupBy` is `none`
 - `truncated`, and any `notes`
+
+**Size limit.** Linting is synchronous and CPU-bound, so a large document blocks every other tool call until it finishes. In a local run, a 0.17 MB OpenAPI document took about 3 s, 1.4 MB about 23 s and 2.7 MB about 62 s, which is past the 60-second timeout many MCP clients use. `lint_document` therefore refuses `content` over 2,000,000 bytes, with an error that names the limit. Raise or lower it with `--max-content-bytes` (or `OPENLINT_MCP_MAX_CONTENT_BYTES`); timings depend on the machine and the document.
 
 **External `$ref`s** (to other files or URLs) aren't followed by default. They're reported as `invalid-ref`, with a note. `--allow-external-refs` turns them on; each HTTP request then has a 10-second timeout.
 
