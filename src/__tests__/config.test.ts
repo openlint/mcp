@@ -2,13 +2,31 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { ConfigError, USAGE, parseConfig } from '../config.js';
+import { ConfigError, DEFAULT_MAX_CONTENT_BYTES, USAGE, parseConfig } from '../config.js';
 
 const cwd = '/work';
 
 describe('parseConfig', () => {
   it('returns no rulesets when nothing is configured', () => {
-    expect(parseConfig([], {}, cwd)).toEqual({ rulesets: [], allowExternalRefs: false });
+    expect(parseConfig([], {}, cwd)).toEqual({
+      rulesets: [],
+      allowExternalRefs: false,
+      maxContentBytes: DEFAULT_MAX_CONTENT_BYTES,
+    });
+  });
+
+  it('reads --max-content-bytes, or OPENLINT_MCP_MAX_CONTENT_BYTES, and prefers the flag', () => {
+    expect(parseConfig(['--max-content-bytes', '1000'], {}, cwd).maxContentBytes).toBe(1000);
+    expect(parseConfig([], { OPENLINT_MCP_MAX_CONTENT_BYTES: '500' }, cwd).maxContentBytes).toBe(500);
+    expect(parseConfig(['--max-content-bytes=1'], { OPENLINT_MCP_MAX_CONTENT_BYTES: '500' }, cwd).maxContentBytes).toBe(
+      1,
+    );
+  });
+
+  it('rejects a --max-content-bytes that is not a positive whole number', () => {
+    for (const value of ['0', '-5', '1.5', 'lots']) {
+      expect(() => parseConfig(['--max-content-bytes', value], {}, cwd)).toThrow(ConfigError);
+    }
   });
 
   it('reads an unnamed --ruleset as the default and resolves it against cwd', () => {
@@ -86,6 +104,11 @@ describe('parseConfig', () => {
   it('shows help and the version even when the rulesets are invalid', () => {
     expect(parseConfig(['--help', '-r', 'a.yaml', '-r', 'b.yaml'], {}, cwd).show).toBe('help');
     expect(parseConfig(['-r', 'oas=x.yaml', '--version'], {}, cwd).show).toBe('version');
+  });
+
+  it('shows help and the version even when the size limit is invalid', () => {
+    expect(parseConfig(['--version', '--max-content-bytes', 'lots'], {}, cwd).show).toBe('version');
+    expect(parseConfig(['--help'], { OPENLINT_MCP_MAX_CONTENT_BYTES: '0' }, cwd).show).toBe('help');
   });
 
   it('explains the default ruleset order in the help', () => {

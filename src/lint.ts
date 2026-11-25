@@ -86,6 +86,9 @@ export interface LintResult {
 const EXTERNAL_REFS_NOTE =
   "External $refs (to files or URLs) weren't followed, so they're reported as invalid-ref. The server follows them only when started with --allow-external-refs.";
 
+const NO_FORMAT_NOTE =
+  "No format was recognized, so only 'unrecognized-format' ran. Check that `content` is the whole document (not a fragment or a file path) and that the ruleset covers its format. Use list_rulesets to see the formats each ruleset covers.";
+
 /**
  * Lints `content` with `ruleset`. The document is never read from disk: it's named after `filename`,
  * as if it sat next to the ruleset's file (or in the working directory for rulesets without one), so
@@ -141,8 +144,11 @@ export async function lintDocument(options: LintOptions): Promise<LintResult> {
   const notes: string[] = [];
   if (!allowExternalRefs && results.some(isUnfollowedExternalRef)) notes.push(EXTERNAL_REFS_NOTE);
 
+  const formats = [...(document.formats ?? [])].map(format => format.displayName ?? format.name);
+  if (results.some(result => result.code === 'unrecognized-format')) notes.push(NO_FORMAT_NOTE);
+
   return {
-    formats: [...(document.formats ?? [])].map(format => format.displayName ?? format.name),
+    formats,
     counts,
     diagnostics: entries.slice(0, limit),
     truncated: entries.length > limit,

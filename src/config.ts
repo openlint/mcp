@@ -1,6 +1,9 @@
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 
+/** Default for `--max-content-bytes`: about 40 s of linting on a laptop, within a typical 60 s client timeout. */
+export const DEFAULT_MAX_CONTENT_BYTES = 2_000_000;
+
 /** Name given to the unnamed `--ruleset <path>` (or `OPENLINT_RULESET`). */
 export const DEFAULT_RULESET_NAME = 'default';
 
@@ -26,6 +29,8 @@ export interface ServerConfig {
    * the AI tool, and following their refs would let them read local files and fetch URLs.
    */
   readonly allowExternalRefs: boolean;
+  /** Largest `content` (in bytes) `lint_document` accepts. Linting is synchronous and CPU-bound. */
+  readonly maxContentBytes: number;
   /** Set when the command line asks for the version or help instead of starting the server. */
   readonly show?: 'version' | 'help';
 }
@@ -38,6 +43,8 @@ Options:
   -r, --ruleset <path>         Default ruleset: a YAML, JSON or JS ruleset file
   -r, --ruleset <name>=<path>  Extra named ruleset; can be repeated
       --allow-external-refs    Let lint_document follow $refs to files and URLs
+      --max-content-bytes <n>  Largest document lint_document accepts (default 2000000;
+                               also OPENLINT_MCP_MAX_CONTENT_BYTES)
   -v, --version                Print the version and exit
   -h, --help                   Print this help and exit
 
@@ -60,17 +67,25 @@ const NAME_PATTERN = /^[A-Za-z][\w.-]*$/;
  * - `--ruleset <name>=<path>` adds a named ruleset; it can be repeated.
  * - Without an unnamed ruleset, the first named one is the default.
  * - `--allow-external-refs` lets `lint_document` follow `$ref`s to files and URLs.
+ * - `--max-content-bytes <n>` (or `OPENLINT_MCP_MAX_CONTENT_BYTES`) caps the size of a document to lint.
  *
  * Relative paths resolve against `cwd`.
  */
 export function parseConfig(argv: readonly string[], env: NodeJS.ProcessEnv, cwd: string): ServerConfig {
-  let values: { ruleset?: string[]; 'allow-external-refs'?: boolean; version?: boolean; help?: boolean };
+  let values: {
+    ruleset?: string[];
+    'allow-external-refs'?: boolean;
+    'max-content-bytes'?: string;
+    version?: boolean;
+    help?: boolean;
+  };
   try {
     ({ values } = parseArgs({
       args: [...argv],
       options: {
         ruleset: { type: 'string', short: 'r', multiple: true },
         'allow-external-refs': { type: 'boolean' },
+        'max-content-bytes': { type: 'string' },
         version: { type: 'boolean', short: 'v' },
         help: { type: 'boolean', short: 'h' },
       },
@@ -84,7 +99,15 @@ export function parseConfig(argv: readonly string[], env: NodeJS.ProcessEnv, cwd
   const allowExternalRefs = values['allow-external-refs'] === true;
   // Before the rulesets are checked, so help and the version work while a configuration is wrong.
   const show = values.help === true ? 'help' : values.version === true ? 'version' : undefined;
-  if (show !== undefined) return { rulesets: [], allowExternalRefs, show };
+  if (show !== undefined) {
+    return { rulesets: [], allowExternalRefs, maxContentBytes: DEFAULT_MAX_CONTENT_BYTES, show };
+  }
+
+  const rawMax = values['max-content-bytes'] ?? env['OPENLINT_MCP_MAX_CONTENT_BYTES']?.trim();
+  const maxContentBytes = rawMax === undefined || rawMax === '' ? DEFAULT_MAX_CONTENT_BYTES : Number(rawMax);
+  if (!Number.isSafeInteger(maxContentBytes) || maxContentBytes < 1) {
+    throw new ConfigError(`--max-content-bytes must be a positive whole number of bytes (got "${rawMax}").`);
+  }
 
   let unnamed: string | undefined;
   const named: { name: string; path: string }[] = [];
@@ -127,5 +150,5 @@ export function parseConfig(argv: readonly string[], env: NodeJS.ProcessEnv, cwd
     specs.push({ name, path: path.resolve(cwd, rulesetPath), isDefault: specs.length === 0 });
   }
 
-  return { rulesets: specs, allowExternalRefs };
+  return { rulesets: specs, allowExternalRefs, maxContentBytes };
 }
