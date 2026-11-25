@@ -1,3 +1,10 @@
+# [0.3.0](https://github.com/openlint/mcp/compare/v0.2.1...v0.3.0) (2026-11-25)
+
+
+### Features
+
+* add a size limit to lint_document and a note when no format is recognized ([#14](https://github.com/openlint/mcp/issues/14)) ([95b7cca](https://github.com/openlint/mcp/commit/95b7cca375ccc20d5fe27058f2d35018064dda4d))
+
 ## [0.2.1](https://github.com/openlint/mcp/compare/v0.2.0...v0.2.1) (2026-11-15)
 
 # [0.2.0](https://github.com/openlint/mcp/compare/v0.1.1...v0.2.0) (2026-11-15)
