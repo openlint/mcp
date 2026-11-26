@@ -111,6 +111,7 @@
     "@openlint/openlint-parsers": "1.0.0",
     "@openlint/openlint-ref-resolver": "0.1.0",
     "@openlint/openlint-ruleset-bundler": "0.1.1",
+    "@openlint/openlint-ruleset-migrator": "0.1.0",
     "@openlint/openlint-rulesets": "0.1.0",
     "@openlint/openlint-runtime": "0.0.1",
     "zod": "4.6.7"

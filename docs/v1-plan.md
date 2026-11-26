@@ -33,7 +33,8 @@ All are already on npm:
 | `@openlint/openlint-core` | 0.1.1 | `OpenLint`, `Document`, `Ruleset`, `Rule`, `assertValidRuleset`, `RulesetValidationError` |
 | `@openlint/openlint-parsers` | 1.0.0 | `Yaml` / `Json` parsers for documents and inline rulesets |
 | `@openlint/openlint-rulesets` | 0.1.0 | `oas`, `asyncapi`, `arazzo` ruleset objects |
-| `@openlint/openlint-ruleset-bundler` | 0.1.1 | `bundleAndLoadRuleset` (`/with-loader`) for configured ruleset files (YAML/JSON/JS). It runs the migrator, which resolves `spectral:oas`-style aliases, so the migrator isn't a direct dependency. Inline rulesets don't use it (see Ruleset sources). |
+| `@openlint/openlint-ruleset-bundler` | 0.1.1 | `bundleAndLoadRuleset` (`/with-loader`) for configured ruleset files (YAML/JSON/JS). It runs the migrator, which resolves `spectral:oas`-style aliases. Inline rulesets don't use it (see Ruleset sources). |
+| `@openlint/openlint-ruleset-migrator` | 0.1.0 | Nothing imports it. It's pinned because the bundler accepts any `0.x`, and migrator 0.2.0 breaks configured ruleset files that use aliases (see below). |
 | `@openlint/openlint-functions` | 0.1.0 | Names of the built-in functions, for checking `then.function` |
 | `@openlint/openlint-formats` | 0.1.0 | Format exports, the source of truth for `formats` names in inline rulesets |
 | `@openlint/openlint-runtime` | 0.0.1 | `fetch` for the loader's `io` |
@@ -48,6 +49,13 @@ Core is CommonJS. This package is ESM and imports core by name. It needs Node `^
 - Linting an OAS 3.0 document with `oas` works (9 results). The CLI's JS-ruleset crash doesn't happen here.
 - After `run()`, `document.formats` holds the matched formats (for example `OpenAPI 3.x`, `OpenAPI 3.0.x`), so `lint_document` can report them.
 - `bundleAndLoadRuleset(file, { fs, fetch })` loads a YAML ruleset file with `extends: ["spectral:oas"]` and gives the same results as the CLI.
+
+**Pin every `@openlint/*` package that matters, including transitive ones.** Users install from npm without this repo's lockfile, so a range in an OpenLint package's own dependencies resolves to the newest version there. That broke every release installed after 2026-11-12, up to 0.3.0:
+- **What happened:** the lockfile had migrator 0.1.0, but fresh installs got migrator 0.2.0 (published 2026-11-12) through the bundler's `0.x` range.
+- **Why it broke:** migrator 0.2.0 turns `spectral:oas` into an import of `@openlint/ruleset-spectral-oas`, and `openlint:openapi` into `@openlint/ruleset-openapi`. Neither package is installed, and the bundler doesn't supply them.
+- **The effect:** a `--ruleset` YAML or JSON file using any of the six aliases stopped the server at startup with `Cannot find module`. JS rulesets and inline rulesets were not affected.
+- **The fix:** pin the migrator directly. npm then reuses it for the bundler's range, and a fresh install matches the lockfile.
+- **Moving to migrator 0.2.0** is a separate decision. It gives `openlint:*` aliases new rulesets that differ from `spectral:*`, which `RULESET_ALIASES` and the inline policy would have to follow.
 
 ## Tools (v1)
 
@@ -210,7 +218,7 @@ Mirrors the OpenLint monorepo conventions:
   - an external `$ref` when external resolution is off, and when it's on
   - each format (OpenAPI 2.0, 3.0, 3.1, AsyncAPI, Arazzo), invalid YAML, and the JSON parser for `.json` names
   - severity threshold, and `overrides` in a configured ruleset matched against `filename`
-- Smoke test: `npm run smoke` (`scripts/smoke.js`) starts `dist/index.js` over stdio with the SDK's stdio client. It checks the handshake, `list_rulesets`, a `validate_ruleset` call that builds an inline ruleset, and `lint_document` with the default rulesets, an inline ruleset, and `--allow-external-refs`. CI runs it on Node 22 and 24. For manual checks, use `npx @modelcontextprotocol/inspector` against the built binary.
+- Smoke test: `npm run smoke` (`scripts/smoke.js`) starts `dist/index.js` over stdio with the SDK's stdio client. It checks the handshake, `list_rulesets`, a `validate_ruleset` call that builds an inline ruleset, and `lint_document` with the default rulesets, an inline ruleset, `--allow-external-refs`, and a `--ruleset` file outside the package that extends all six aliases. CI runs it on Node 22 and 24, against `dist/index.js` and then against a fresh install of the packed package (`npm pack`, then `npm install --global --prefix` with no lockfile). The second run catches dependencies that resolve differently for users than in the lockfile. Unit tests can't, because they always use the lockfile. For manual checks, use `npx @modelcontextprotocol/inspector` against the built binary.
 
 ## Milestones (one PR each)
 
@@ -273,6 +281,7 @@ Points raised while reviewing the plan against #13, and how PR 2 settled them.
 - **Optional:** add an `openlint:oas` alias in `packages/ruleset-migrator/src/transformers/extends.ts` for symmetry with `spectral:oas`. The OpenAPI alias is `openlint:openapi`, so nothing is missing, but `openlint:oas` is an easy guess. Today it is resolved as a file path and fails.
 - **JS rulesets crashing in the CLI:** `.mjs` rulesets that import `oas` crash on OAS 3.0 documents with `oasDocumentSchema … a is not a function`. *PR 2:* this doesn't reproduce through the published bundler. `bundleAndLoadRuleset` loads such a ruleset from outside the package directory and lints OAS 3.0 correctly, so the bug is likely in the CLI. Reproduce it with the CLI before filing.
 - **Possible core limitation:** core can't extend a ruleset that uses aliases, such as `oas`, inside `overrides`. It fails with `Alias "ArrayProperties" does not exist`. Check whether that's intended (Spectral may behave the same) before filing.
+- **The bundler and migrator 0.2.0 don't fit together** (not filed yet). The bundler accepts migrator `0.x`, and migrator 0.2.0 imports `@openlint/ruleset-spectral-*` and `@openlint/ruleset-{openapi,asyncapi,arazzo}` for the six aliases. The bundler doesn't depend on those packages, and its builtins plugin only supplies `@openlint/openlint-*` modules. So any consumer of the bundler, other than the CLI, which depends on all six, gets `Cannot find module` for a ruleset file that uses an alias. Possible fixes are for the bundler to depend on the six packages or supply them as builtins, or for the migrator's change to be released as a breaking version. See Dependencies for how this repo works around it.
 - ~~Export a content-based ruleset loader.~~ Not needed: the spike works with the bundler as published.
 
 ## Open questions
