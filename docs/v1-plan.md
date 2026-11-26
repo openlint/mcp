@@ -32,10 +32,11 @@ All are already on npm:
 |---|---|---|
 | `@openlint/openlint-core` | 0.1.1 | `OpenLint`, `Document`, `Ruleset`, `Rule`, `assertValidRuleset`, `RulesetValidationError` |
 | `@openlint/openlint-parsers` | 1.0.0 | `Yaml` / `Json` parsers for documents and inline rulesets |
-| `@openlint/openlint-rulesets` | 0.1.0 | `oas`, `asyncapi`, `arazzo` ruleset objects |
-| `@openlint/openlint-ruleset-bundler` | 0.1.1 | `bundleAndLoadRuleset` (`/with-loader`) for configured ruleset files (YAML/JSON/JS). It runs the migrator, which resolves `spectral:oas`-style aliases. Inline rulesets don't use it (see Ruleset sources). |
+| `@openlint/openlint-rulesets` | 0.3.0 | `oas`, `asyncapi`, `arazzo` ruleset objects. Since 0.2.0 ([openlint/openlint#42](https://github.com/openlint/openlint/pull/42)) it re-exports them from the three packages below. |
+| `@openlint/ruleset-spectral-oas`, `-asyncapi`, `-arazzo` | 1.0.0 | Nothing imports them; they hold the built-in rules. They're pinned because the rulesets package accepts any `^1.0.0`, so rules could otherwise change on a user's install without a release here. The bump from rulesets 0.1.0 left all 57, 55 and 22 rules unchanged. |
+| `@openlint/openlint-ruleset-bundler` | 0.2.0 | `bundleAndLoadRuleset` (`/with-loader`) for configured ruleset files (YAML/JSON/JS). It runs the migrator, which resolves `spectral:oas`-style aliases. Inline rulesets don't use it (see Ruleset sources). |
 | `@openlint/openlint-ruleset-migrator` | 0.1.0 | Nothing imports it. It's pinned because the bundler accepts any `0.x`, and migrator 0.2.0 breaks configured ruleset files that use aliases (see below). |
-| `@openlint/openlint-functions` | 0.1.0 | Names of the built-in functions, for checking `then.function` |
+| `@openlint/openlint-functions` | 0.2.0 | Names of the built-in functions, for checking `then.function` |
 | `@openlint/openlint-formats` | 0.1.0 | Format exports, the source of truth for `formats` names in inline rulesets |
 | `@openlint/openlint-runtime` | 0.0.1 | `fetch` for the loader's `io` |
 | `@openlint/openlint-ref-resolver` | 0.1.0 | Building a resolver with external refs turned off (see Safety) |

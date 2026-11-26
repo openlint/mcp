@@ -60,9 +60,16 @@ describe('package.json', () => {
     for (const [name, version] of openlint) expect(version, name).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
-  it('pins the ruleset migrator, which the bundler would otherwise resolve to any 0.x', () => {
-    // Nothing imports it directly. The pin is what keeps a fresh install on the tested version.
-    expect(pkg.dependencies).toHaveProperty(['@openlint/openlint-ruleset-migrator']);
+  it.each([
+    // The bundler accepts any 0.x of the migrator.
+    '@openlint/openlint-ruleset-migrator',
+    // The rulesets package re-exports these and accepts any 1.x; they hold the built-in rules.
+    '@openlint/ruleset-spectral-oas',
+    '@openlint/ruleset-spectral-asyncapi',
+    '@openlint/ruleset-spectral-arazzo',
+  ])('pins %s, which other OpenLint packages accept as a range', name => {
+    // Nothing here imports it. The pin is what keeps a fresh install on the tested version.
+    expect(pkg.dependencies).toHaveProperty([name]);
   });
 
   it('ships the openlint-mcp command in the published files', () => {
