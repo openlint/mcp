@@ -85,6 +85,29 @@ describe('configured rulesets', () => {
       expect(await lintCodes(rulesetOf(service.resolve()))).toEqual(['org-title']);
     });
 
+    // The ruleset migrator turns these aliases into imports. Migrator 0.2.0 imports packages this
+    // server doesn't install, so with it a ruleset file using any of them fails to load.
+    const ALIASES = [
+      'spectral:oas',
+      'spectral:asyncapi',
+      'spectral:arazzo',
+      'openlint:openapi',
+      'openlint:asyncapi',
+      'openlint:arazzo',
+    ];
+
+    it.each([
+      ['YAML', 'aliases.yaml', `extends: [${ALIASES.join(', ')}]\n`],
+      ['JSON', 'aliases.json', JSON.stringify({ extends: ALIASES })],
+    ])('loads a %s ruleset that extends each spectral: and openlint: alias', async (_kind, file, content) => {
+      fs.writeFileSync(path.join(dir, file), content);
+      const service = await RulesetService.fromConfig([
+        { name: 'default', path: path.join(dir, file), isDefault: true },
+      ]);
+      const rules = Object.keys(rulesetOf(service.resolve()).rules);
+      expect(rules).toEqual(expect.arrayContaining(['oas3-schema', 'asyncapi-schema', 'arazzo-document-schema']));
+    });
+
     it('loads a JS ruleset that imports a package ruleset and a custom function', async () => {
       const service = await RulesetService.fromConfig([
         { name: 'default', path: path.join(dir, 'ruleset.mjs'), isDefault: true },

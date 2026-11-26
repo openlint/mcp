@@ -3,7 +3,9 @@
 // @openlint/* packages, which Vitest's transforms would hide.
 //
 // OPENLINT_MCP_SERVER=/path/to/openlint-mcp runs an installed command instead of dist/index.js.
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -81,3 +83,23 @@ await withServer(['--allow-external-refs'], async client => {
   });
   check(linted?.counts?.warn > 0 && linted.notes.length === 0, 'lint_document runs with --allow-external-refs');
 });
+
+// A ruleset file outside the package, like a user's: the imports its aliases turn into must
+// resolve from the server's own install.
+const rulesetDir = mkdtempSync(path.join(tmpdir(), 'openlint-mcp-smoke-'));
+const aliasRuleset = path.join(rulesetDir, '.openlint.yaml');
+writeFileSync(
+  aliasRuleset,
+  'extends: [spectral:oas, spectral:asyncapi, spectral:arazzo, openlint:openapi, openlint:asyncapi, openlint:arazzo]\n',
+);
+try {
+  await withServer(['--ruleset', aliasRuleset], async client => {
+    const { structuredContent: linted } = await client.callTool({
+      name: 'lint_document',
+      arguments: { content: document },
+    });
+    check(linted?.counts?.warn > 0, 'lint_document lints with a --ruleset file that extends every alias');
+  });
+} finally {
+  rmSync(rulesetDir, { recursive: true, force: true });
+}

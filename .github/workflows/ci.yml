@@ -26,6 +26,13 @@ jobs:
       - run: npm run build
       - name: Smoke test stdio server
         run: timeout 60 npm run smoke
+      - name: Smoke test a fresh install of the package
+        # Installs the packed package without the lockfile, as npm and npx users get it. A dependency
+        # that resolves to a different version there fails here, before it's released.
+        run: |
+          npm pack --pack-destination "$RUNNER_TEMP"
+          npm install --global --prefix "$RUNNER_TEMP/prefix" "$RUNNER_TEMP"/openlint-openlint-mcp-*.tgz
+          OPENLINT_MCP_SERVER="$RUNNER_TEMP/prefix/bin/openlint-mcp" timeout 60 npm run smoke
 
   commitlint:
     if: github.event_name == 'pull_request'

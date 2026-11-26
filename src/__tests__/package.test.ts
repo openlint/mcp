@@ -10,6 +10,7 @@ interface PackageJson {
   files: string[];
   repository: { url: string };
   publishConfig?: { access?: string; provenance?: boolean };
+  dependencies: Record<string, string>;
   release: { plugins: (string | [string, Record<string, unknown>])[] };
 }
 
@@ -51,6 +52,17 @@ describe('package.json', () => {
       scope: 'readme',
       release: 'patch',
     });
+  });
+
+  it('pins every @openlint/* dependency to an exact version', () => {
+    const openlint = Object.entries(pkg.dependencies).filter(([name]) => name.startsWith('@openlint/'));
+    expect(openlint.length).toBeGreaterThan(0);
+    for (const [name, version] of openlint) expect(version, name).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+
+  it('pins the ruleset migrator, which the bundler would otherwise resolve to any 0.x', () => {
+    // Nothing imports it directly. The pin is what keeps a fresh install on the tested version.
+    expect(pkg.dependencies).toHaveProperty(['@openlint/openlint-ruleset-migrator']);
   });
 
   it('ships the openlint-mcp command in the published files', () => {
