@@ -1,3 +1,10 @@
+## [0.3.1](https://github.com/openlint/mcp/compare/v0.3.0...v0.3.1) (2026-11-26)
+
+
+### Bug Fixes
+
+* load --ruleset files that extend spectral: and openlint: aliases ([#15](https://github.com/openlint/mcp/issues/15)) ([fae5f9b](https://github.com/openlint/mcp/commit/fae5f9b18b792c37f45e4f4942bbd62814c0d0f0))
+
 # [0.3.0](https://github.com/openlint/mcp/compare/v0.2.1...v0.3.0) (2026-11-25)
 
 
