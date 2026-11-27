@@ -1,3 +1,10 @@
+## [0.3.2](https://github.com/openlint/mcp/compare/v0.3.1...v0.3.2) (2026-11-27)
+
+
+### Bug Fixes
+
+* **deps:** update the OpenLint functions, ruleset-bundler and rulesets packages ([#16](https://github.com/openlint/mcp/issues/16)) ([a576dad](https://github.com/openlint/mcp/commit/a576dade37fae70febdf936a8701f6ec488b0e01))
+
 ## [0.3.1](https://github.com/openlint/mcp/compare/v0.3.0...v0.3.1) (2026-11-26)
 
 
