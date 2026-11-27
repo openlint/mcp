@@ -1,0 +1,23 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    # Only the OpenLint packages. A merged update PR releases a patch (fix(deps)), so other
+    # dependencies, dev ones especially, would publish versions with no change for users.
+    allow:
+      - dependency-name: '@openlint/*'
+    ignore:
+      # Migrator 0.2.0 changes what the openlint:* aliases load and imports packages this server
+      # doesn't install. See "Dependencies" in docs/v1-plan.md before removing this.
+      - dependency-name: '@openlint/openlint-ruleset-migrator'
+    # One PR for all of them: they depend on each other.
+    groups:
+      openlint:
+        patterns:
+          - '@openlint/*'
+    # fix(deps): ..., which commitlint accepts and semantic-release releases as a patch.
+    commit-message:
+      prefix: fix
+      include: scope
